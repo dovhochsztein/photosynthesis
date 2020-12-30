@@ -6,7 +6,17 @@ class Goes_In_Hex():
         self.value = value
         self.text = text
     def __str__(self):
-        return str(self.name)
+        return str(self.text)
+
+
+# todo:
+# remove element list,
+# fix printing so that it shows only hexes that are included,
+# include array slicing,
+# fix print text to consider new lines without requiring list of strings
+# get rid of changing rectangular coordinates
+# add repr to Grid
+# consider multiple versions of rectangular coordinates
 
 # class blocked(Goes_In_Hex):
 #     def __init__(self, value, text=None):
@@ -14,16 +24,23 @@ class Goes_In_Hex():
 
 class Hex():
     """Hexagonal grid element (cubic coordinates)
-    sign convention based on 'odd-q' https://www.redblobgames.com/grids/hexagons/
+    sign convention for rectangular coordinates based on 'odd-q' offset coordinates https://www.redblobgames.com/grids/hexagons/
 
-     /+y  \ \      /
-    /    +x\ \____/
-    \      / /    \
-     \+z__/ /      \
-     /    \ \      /
-    /      \ \____/
-    \      / /    \
-     \____/ /      \
+    Cubic:                              Rectangular
+       _______                            _______
+      /  +y   \  \           /           /   +y  \  \           /
+     /         \  \         /           /   ^     \  \         /
+    /           \  \_______/           /    | __\+x\  \_______/
+    \           /  /       \           \        /  /  /       \
+     \+z     +x/  /         \           \         /  /         \
+      \_______/  /           \           \_______/  /           \
+      /       \  \           /           /       \  \           /
+     /         \  \         /           /         \  \         /
+    /           \  \_______/           /           \  \_______/
+    \           /  /       \           \           /  /       \
+     \         /  /         \           \         /  /         \
+      \_______/  /           \           \_______/  /           \
+
     """
     def __init__(self, coordinates=(0, 0, 0), obj=None):
         # if len(coordinates) == 2:
@@ -67,10 +84,18 @@ class Hex():
     def __str__(self):
         return str(self.obj)
 
+def convert_cubic_coordinates_to_rectangular(cubic_coordinates):
+    rectangular_coordinates = (cubic_coordinates[0], int(cubic_coordinates[2] + (cubic_coordinates[0] - (cubic_coordinates[0] % 2)) / 2))
+    return rectangular_coordinates
+
+def convert_rectangular_coordinates_to_cubic(rectangular_coordinates):
+    cubic_coordinates = (rectangular_coordinates[0], 0, rectangular_coordinates[1] - (rectangular_coordinates[0] - (rectangular_coordinates[0] % 1)) / 2)
+    cubic_coordinates = (cubic_coordinates[0], -cubic_coordinates[0] - cubic_coordinates[2], cubic_coordinates[2])
+    return cubic_coordinates
 
 class Grid:
     """heagonal grid consisting of a list of hexagonal elements"""
-    def __init__(self, element_list, width=5, height=7, size=2):
+    def __init__(self, element_list, width=5, height=7, size=3):
         self.element_list = element_list
         # origin = [0, 0]
         # for element in element_list:
@@ -131,6 +156,15 @@ class Grid:
     def __getitem__(self, key):
         return self.element_dict[key]
 
+    def __getslice__(self, i, j, sequence):
+        pass
+
+    def __setitem__(self, key, value):
+        pass
+
+    def __setslice__(self, i, j, sequence):
+        pass
+
     def __str__(self):
         if self.origin is None:
             origin = [0, 0]
@@ -141,10 +175,10 @@ class Grid:
                     origin[1] = int(element.rectangular_coordinates[1] - (origin[0] % 2))  # - (origin[0] % 2)
             for element in self.element_list:
                 element.update_rectangular_coordinates(origin)
-                if element.rectangular_coordinates[0] + 1 > width:
-                    width = int(element.rectangular_coordinates[0]) + 1
-                if element.rectangular_coordinates[1] + 2 > height:
-                    height = int(element.rectangular_coordinates[1]) + 2
+                if element.rectangular_coordinates[0] + 1 > self.width:
+                    self.width = int(element.rectangular_coordinates[0]) + 1
+                if element.rectangular_coordinates[1] + 2 > self.height:
+                    self.height = int(element.rectangular_coordinates[1]) + 2
             self.origin = origin
         return generate_visual_grid(self.element_list, self.width, self.height, size=self.size)
     pass
@@ -178,9 +212,48 @@ def distance(cubic_coordinates_1, cubic_coordinates_2):
     return sum([delta_x, delta_y, delta_z]) - max(delta_x, delta_y, delta_z)
 
 
-def generate_visual_grid(element_list, width, height, size=2):
+def generate_visual_grid(element_list, width, height, size=3):
+    ASPECT_RATIO = 1.7
     building_blocks = []
-    size_y = int(round(size * 1.7)) + 2
+    size_y = int(round(size * ASPECT_RATIO)) + 2
+    for ii in range(size):
+        new_line = ' ' * (size - ii - 1) + "/" + ' ' * (size_y + ii *2) + "\\" + ' ' * (size - ii - 1)
+        building_blocks.append(new_line)
+    for ii in reversed(range(size)):
+        if ii == 0:
+            new_line = ' ' * (size - ii - 1) + "\\" + '_' * (size_y + ii * 2) + "/" + ' ' * (size - ii - 1)
+        else:
+            new_line = ' ' * (size - ii - 1) + "\\" + ' ' * (size_y + ii *2) + "/" + ' ' * (size - ii - 1)
+        building_blocks.append(new_line)
+    top_line_building_block = ' ' * (size)+ '_' * (size_y) + ' ' * (size)
+    empty_building_block = ' ' * (size_y + 2 * size)
+    lines = ['']
+    for jj in range(width):
+        lines[0] += empty_building_block if jj % 2 else top_line_building_block
+    for ii in range(height * size * 2):
+        new_line = ''
+        for jj in range(width):
+            new_line += building_blocks[(ii + size * (jj % 2)) % (size*2)]
+        lines.append(new_line)
+    for element in element_list:
+        x_center = int((size_y + 2 * size) * (element.rectangular_coordinates[0] + 0.5))
+        y = int(size * 2 * element.rectangular_coordinates[1] + 1 + (element.rectangular_coordinates[0] % 2 + 1) * size - int((len(element.text) + 1)/ 2))
+        for ii, chars in enumerate(element.text):
+            if ii >= size * 2 - 1:
+                break
+            space = size_y + 2 * min(ii, abs(ii + 1 - size * 2))
+            if space < len(chars):
+                chars = chars[0:space]
+            x = x_center - int(len(chars)/2)
+            lines[y + ii] = lines[y + ii][0: x] + chars + lines[y + ii][x + len(chars):]
+    output = '\n'.join(lines)
+    return output
+
+
+def generate_visual_grid(element_list, width, height, size=3):
+    ASPECT_RATIO = 1.7
+    building_blocks = []
+    size_y = int(round(size * ASPECT_RATIO)) + 2
     for ii in range(size):
         new_line = ' ' * (size - ii - 1) + "/" + ' ' * (size_y + ii *2) + "\\" + ' ' * (size - ii - 1)
         building_blocks.append(new_line)
@@ -258,7 +331,7 @@ if __name__ == '__main__':
     # C = Hex((2, -2, 0), Goes_In_Hex('Third', ['over']))
     # D = Hex((4, -5, 1), Goes_In_Hex('Fourth', ['the', 'lazy', 'dog', 'end']))
     # element_list = [A, B, C, D]
-    # G = Grid(element_list, size=2)
+    # G = Grid(element_list, size=3)
     # print(G)
 
     A = Hex((0, 1, -1), Goes_In_Hex('First', ['the', 'quick']))
@@ -275,7 +348,7 @@ if __name__ == '__main__':
     E = Hex((1, 0, -1), 'more stuff')
     F = Hex((-1, 0, 1), 'he not name')
     element_list = [A, B, C, D, E, F]
-    G = Grid(element_list, size=2)
+    G = Grid(element_list, size=3)
     g = generate_radial_hex_array(1)
     g = generate_radial_hex_array(3)
     h = generate_radial_hex_array(3, False)
