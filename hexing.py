@@ -1,4 +1,3 @@
-import hexutil
 from collections import namedtuple
 from copy import *
 
