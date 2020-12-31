@@ -250,30 +250,40 @@ def generate_visual_grid(element_list, width, height, size=3):
     return output
 
 
-def generate_visual_grid(element_list, width, height, size=3):
+def generate_visual_grid(element_dict, width, height, size=3):
+    overbar = u"\u203E"
+    element_rectangular_dict = {hex_obj.rectangular_coordinates: hex_obj for hex_obj in element_dict.values()}
     ASPECT_RATIO = 1.7
-    building_blocks = []
+    full_building_blocks = []
     size_y = int(round(size * ASPECT_RATIO)) + 2
     for ii in range(size):
-        new_line = ' ' * (size - ii - 1) + "/" + ' ' * (size_y + ii *2) + "\\" + ' ' * (size - ii - 1)
-        building_blocks.append(new_line)
+        if ii == 0:
+            new_line = ' ' * (size - ii - 1) + "/" + overbar * (size_y + ii * 2) + "\\" + ' ' * (size - ii - 1)
+        else:
+            new_line = ' ' * (size - ii - 1) + "/" + ' ' * (size_y + ii * 2) + "\\" + ' ' * (size - ii - 1)
+        full_building_blocks.append(new_line)
     for ii in reversed(range(size)):
         if ii == 0:
             new_line = ' ' * (size - ii - 1) + "\\" + '_' * (size_y + ii * 2) + "/" + ' ' * (size - ii - 1)
         else:
-            new_line = ' ' * (size - ii - 1) + "\\" + ' ' * (size_y + ii *2) + "/" + ' ' * (size - ii - 1)
-        building_blocks.append(new_line)
-    top_line_building_block = ' ' * (size)+ '_' * (size_y) + ' ' * (size)
+            new_line = ' ' * (size - ii - 1) + "\\" + ' ' * (size_y + ii * 2) + "/" + ' ' * (size - ii - 1)
+        full_building_blocks.append(new_line)
+    # top_line_building_block = ' ' * (size)+ '_' * (size_y) + ' ' * (size)
     empty_building_block = ' ' * (size_y + 2 * size)
-    lines = ['']
-    for jj in range(width):
-        lines[0] += empty_building_block if jj % 2 else top_line_building_block
+    lines = []
+    # for jj in range(width):
+    #     lines[0] += empty_building_block if jj % 2 else top_line_building_block
     for ii in range(height * size * 2):
         new_line = ''
         for jj in range(width):
-            new_line += building_blocks[(ii + size * (jj % 2)) % (size*2)]
+            expected_rectangular_coordinates = (jj, (ii - size * (jj % 2)) // (size * 2))
+            if expected_rectangular_coordinates in element_rectangular_dict.keys():
+                print(ii, jj, expected_rectangular_coordinates)
+                new_line += full_building_blocks[(ii + size * (jj % 2)) % (size*2)]
+            else:
+                new_line += empty_building_block
         lines.append(new_line)
-    for element in element_list:
+    for element in element_dict.values():
         x_center = int((size_y + 2 * size) * (element.rectangular_coordinates[0] + 0.5))
         y = int(size * 2 * element.rectangular_coordinates[1] + 1 + (element.rectangular_coordinates[0] % 2 + 1) * size - int((len(element.text) + 1)/ 2))
         for ii, chars in enumerate(element.text):
