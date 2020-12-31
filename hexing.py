@@ -1,5 +1,6 @@
 from collections import namedtuple
 from copy import *
+import numpy as np
 
 class Goes_In_Hex():
     def __init__(self, value=None, text=[]):
@@ -95,7 +96,7 @@ def convert_rectangular_coordinates_to_cubic(rectangular_coordinates):
 
 class Grid:
     """heagonal grid consisting of a list of hexagonal elements"""
-    def __init__(self, element_list, width=5, height=7, size=3):
+    def __init__(self, element_list, size=3):
         self.element_list = element_list
         # origin = [0, 0]
         # for element in element_list:
@@ -110,8 +111,13 @@ class Grid:
         #     if element.rectangular_coordinates[1] + 2 > height:
         #         height = int(element.rectangular_coordinates[1]) + 2
         self.origin = None
-        self.width = width
-        self.height = height
+        rectangular_coordinates_list = [element.rectangular_coordinates for element in element_list]
+        x_list = [coord[0] for coord in rectangular_coordinates_list]
+        y_list = [coord[1] for coord in rectangular_coordinates_list]
+        self.min_x = int(min(x_list))
+        self.min_y = int(min(y_list))
+        self.max_x = int(max(x_list))
+        self.max_y = int(max(y_list))
         self.size = size
         self.element_dict = {element.cubic_coordinates: element for element in self.element_list}
 
@@ -119,8 +125,10 @@ class Grid:
         new = Grid([deepcopy(element) for element in self.element_list])
         # new.element_list = [deepcopy(element) for element in self.element_list]
         new.origin = self.origin
-        new.width = self.width
-        new.height = self.height
+        new.min_x = self.min_x
+        new.min_y = self.min_y
+        new.max_x = self.max_x
+        new.max_y = self.max_y
         new.element_dict = {element.cubic_coordinates: element for element in new.element_list}
         return new
 
@@ -131,16 +139,23 @@ class Grid:
             if coordinates not in other.element_dict or self.element_dict[coordinates] != other.element_dict[coordinates]:
                 return False
 
+    def update_min_max_x_y(self, rectangular_coordinates):
+        if rectangular_coordinates[0] < self.min_x:
+            self.min_x = int(rectangular_coordinates[0])
+        elif rectangular_coordinates[0] > self.max_x:
+            self.max_x = int(rectangular_coordinates[0])
+        if rectangular_coordinates[1] < self.min_y:
+            self.min_y = int(rectangular_coordinates[1])
+        elif rectangular_coordinates[1] > self.max_y:
+            self.max_y = int(rectangular_coordinates[1])
+
     def add_hex(self, hex):
         if hex.cubic_coordinates in self.element_dict:
             raise NameError('location already taken')
         hex.update_rectangular_coordinates(self.origin) #fix?
         self.element_list.append(hex)
         self.element_dict[hex.cubic_coordinates] = hex
-        if hex.rectangular_coordinates[0] + 1 > self.width:
-            self.width = int(element.rectangular_coordinates[0]) + 1
-        if element.rectangular_coordinates[1] + 2 > self.height:
-            self.height = int(element.rectangular_coordinates[1]) + 2
+        self.update_min_max_x_y(hex.rectangular_coordinates)
 
     def where(self, obj, comparison=None):
         output = []
@@ -166,21 +181,19 @@ class Grid:
         pass
 
     def __str__(self):
-        if self.origin is None:
-            origin = [0, 0]
-            for element in element_list:
-                if element.rectangular_coordinates[0] < origin[0]:
-                    origin[0] = element.rectangular_coordinates[0]
-                if element.rectangular_coordinates[1] - (origin[0] % 2) < origin[1]:  # - (origin[0] % 2):
-                    origin[1] = int(element.rectangular_coordinates[1] - (origin[0] % 2))  # - (origin[0] % 2)
-            for element in self.element_list:
-                element.update_rectangular_coordinates(origin)
-                if element.rectangular_coordinates[0] + 1 > self.width:
-                    self.width = int(element.rectangular_coordinates[0]) + 1
-                if element.rectangular_coordinates[1] + 2 > self.height:
-                    self.height = int(element.rectangular_coordinates[1]) + 2
-            self.origin = origin
-        return generate_visual_grid(self.element_list, self.width, self.height, size=self.size)
+        # if self.origin is None:
+        #     origin = [0, 0]
+        #     for element in self.element_list:
+        #         if element.rectangular_coordinates[0] < origin[0]:
+        #             origin[0] = element.rectangular_coordinates[0]
+        #         if element.rectangular_coordinates[1] - (origin[0] % 2) < origin[1]:  # - (origin[0] % 2):
+        #             origin[1] = int(element.rectangular_coordinates[1] - (origin[0] % 2))  # - (origin[0] % 2)
+        #     for element in self.element_list:
+        #         element.update_rectangular_coordinates(origin)
+        #         self.update_min_max_x_y(element.rectangular_coordinates)
+        #     self.origin = origin
+        # return generate_visual_grid(self.element_list, self.width, self.height, size=self.size)
+        return generate_visual_grid(self.element_dict, self.min_x, self.min_y, self.max_x, self.max_y, size=self.size)
     pass
 
 
@@ -250,7 +263,9 @@ def generate_visual_grid(element_list, width, height, size=3):
     return output
 
 
-def generate_visual_grid(element_dict, width, height, size=3):
+def generate_visual_grid(element_dict, min_x, min_y, max_x, max_y, size=3):
+    width = max_x - min_x + 1
+    height = max_y - min_y + 2
     overbar = u"\u203E"
     element_rectangular_dict = {hex_obj.rectangular_coordinates: hex_obj for hex_obj in element_dict.values()}
     ASPECT_RATIO = 1.7
@@ -276,26 +291,54 @@ def generate_visual_grid(element_dict, width, height, size=3):
     for ii in range(height * size * 2):
         new_line = ''
         for jj in range(width):
-            expected_rectangular_coordinates = (jj, (ii - size * (jj % 2)) // (size * 2))
+            # expected_rectangular_coordinates = (jj + min_x, (ii - size * (jj % 2) - ((min_x % 2)) + 1) // (size * 2) + min_y)
+            expected_rectangular_coordinates = (jj + min_x, (ii - size * (jj % 2) - size * 2 * ((jj + 1) % 2)) // (size * 2) + min_y)
             if expected_rectangular_coordinates in element_rectangular_dict.keys():
-                print(ii, jj, expected_rectangular_coordinates)
+                # building_block = full_building_blocks[(ii + size * (jj % 2)) % (size*2)]
+                # building_block = building_block[:5] + \
+                #                      str(expected_rectangular_coordinates[0]) + ',' + str(expected_rectangular_coordinates[1]) \
+                #                  + building_block[8:]
+                # print(ii, jj, expected_rectangular_coordinates)
                 new_line += full_building_blocks[(ii + size * (jj % 2)) % (size*2)]
+                # new_line += building_block
             else:
                 new_line += empty_building_block
         lines.append(new_line)
     for element in element_dict.values():
-        x_center = int((size_y + 2 * size) * (element.rectangular_coordinates[0] + 0.5))
-        y = int(size * 2 * element.rectangular_coordinates[1] + 1 + (element.rectangular_coordinates[0] % 2 + 1) * size - int((len(element.text) + 1)/ 2))
-        for ii, chars in enumerate(element.text):
-            if ii >= size * 2 - 1:
+        jj, ii = element.rectangular_coordinates
+        adjusted_rectangular_coordinates = (jj - min_x,
+                                            ii + ((jj) % 2) - min_y)   # - (min_y % 2))
+        x_center = int((size_y + 2 * size) * (adjusted_rectangular_coordinates[0] + 0.5))
+        y = int(size * 2 * adjusted_rectangular_coordinates[1] + 1 + (adjusted_rectangular_coordinates[0] % 2 + 1) * size - int((len(element.text) + 1) / 2))
+        text_broken_up = element.text
+        if len(text_broken_up) > 2 * size:
+            text_broken_up = text_broken_up[:2 * size]
+        vertical_offset = len(text_broken_up) // 2
+        for ind, chars in enumerate(text_broken_up):
+            if ind >= size * 2 - 1:
                 break
-            space = size_y + 2 * min(ii, abs(ii + 1 - size * 2))
+            space = size_y + 2 * min(ind, abs(ind + 1 - size * 2))
             if space < len(chars):
                 chars = chars[0:space]
             x = x_center - int(len(chars)/2)
-            lines[y + ii] = lines[y + ii][0: x] + chars + lines[y + ii][x + len(chars):]
+            level = y + ind - vertical_offset
+            lines[level] = lines[level][0: x] + chars + lines[level][x + len(chars):]
+    lines = remove_empty_lines(lines)
     output = '\n'.join(lines)
     return output
+
+
+def remove_empty_lines(lines):
+    indices_with_material = []
+    for ii, line in enumerate(lines):
+        if np.any([True for char in line if char != ' ']):
+            indices_with_material.append(ii)
+    if len(indices_with_material) > 0:
+        lines = lines[indices_with_material[0]: indices_with_material[-1] + 1]
+    else:
+        lines = []
+    return lines
+
 
 
 def generate_radial_hex_array(radius, default_obj=None):
@@ -364,9 +407,8 @@ if __name__ == '__main__':
     h = generate_radial_hex_array(3, False)
     h[(3, -2, -1)].change(True)
     h.where(True)
-    print(h)
+    # print(h)
     for element in g.element_list:
-        # element.obj.text = ['rad =', str(element.radius)]
-        element.text = ['rad =', str(element.radius)]
-    print(g)
+        element.text = ['rad =', str(element.get_radius())]
     print(G)
+    print(g)
