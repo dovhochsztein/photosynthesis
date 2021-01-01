@@ -23,7 +23,7 @@ class Goes_In_Hex():
 #     def __init__(self, value, text=None):
 #         super.__init__(self, value, text)
 
-class Hex():
+class Hex:
     """Hexagonal grid element (cubic coordinates)
     sign convention for rectangular coordinates based on 'odd-q' offset coordinates https://www.redblobgames.com/grids/hexagons/
 
@@ -85,6 +85,10 @@ class Hex():
     def __str__(self):
         return str(self.obj)
 
+    def __repr__(self):
+        return f'Hex({self.cubic_coordinates}, {repr(self.obj)})'
+
+
 def convert_cubic_coordinates_to_rectangular(cubic_coordinates):
     rectangular_coordinates = (cubic_coordinates[0], int(cubic_coordinates[2] + (cubic_coordinates[0] - (cubic_coordinates[0] % 2)) / 2))
     return rectangular_coordinates
@@ -93,6 +97,7 @@ def convert_rectangular_coordinates_to_cubic(rectangular_coordinates):
     cubic_coordinates = (rectangular_coordinates[0], 0, rectangular_coordinates[1] - (rectangular_coordinates[0] - (rectangular_coordinates[0] % 1)) / 2)
     cubic_coordinates = (cubic_coordinates[0], -cubic_coordinates[0] - cubic_coordinates[2], cubic_coordinates[2])
     return cubic_coordinates
+
 
 class Grid:
     """heagonal grid consisting of a list of hexagonal elements"""
@@ -172,13 +177,13 @@ class Grid:
         return self.element_dict[key]
 
     def __getslice__(self, i, j, sequence):
-        pass
+        return 'getslice'
 
     def __setitem__(self, key, value):
-        pass
+        return '__setitem__'
 
     def __setslice__(self, i, j, sequence):
-        pass
+        return 'setslice'
 
     def __str__(self):
         # if self.origin is None:
@@ -194,8 +199,10 @@ class Grid:
         #     self.origin = origin
         # return generate_visual_grid(self.element_list, self.width, self.height, size=self.size)
         return generate_visual_grid(self.element_dict, self.min_x, self.min_y, self.max_x, self.max_y, size=self.size)
-    pass
 
+    def __repr__(self):
+        # hex_list = [repr(hex) for hex in self.element_list]
+        return f'Grid({self.element_list})'
 
 def translation(cubic_coordinates, direction, distance):
     """
@@ -423,3 +430,4 @@ if __name__ == '__main__':
         element.text = ['rad =', str(element.get_radius())]
     print(G)
     print(g)
+    print(repr(g))
