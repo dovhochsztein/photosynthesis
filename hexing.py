@@ -225,42 +225,42 @@ def distance(cubic_coordinates_1, cubic_coordinates_2):
     return sum([delta_x, delta_y, delta_z]) - max(delta_x, delta_y, delta_z)
 
 
-def generate_visual_grid(element_list, width, height, size=3):
-    ASPECT_RATIO = 1.7
-    building_blocks = []
-    size_y = int(round(size * ASPECT_RATIO)) + 2
-    for ii in range(size):
-        new_line = ' ' * (size - ii - 1) + "/" + ' ' * (size_y + ii *2) + "\\" + ' ' * (size - ii - 1)
-        building_blocks.append(new_line)
-    for ii in reversed(range(size)):
-        if ii == 0:
-            new_line = ' ' * (size - ii - 1) + "\\" + '_' * (size_y + ii * 2) + "/" + ' ' * (size - ii - 1)
-        else:
-            new_line = ' ' * (size - ii - 1) + "\\" + ' ' * (size_y + ii *2) + "/" + ' ' * (size - ii - 1)
-        building_blocks.append(new_line)
-    top_line_building_block = ' ' * (size)+ '_' * (size_y) + ' ' * (size)
-    empty_building_block = ' ' * (size_y + 2 * size)
-    lines = ['']
-    for jj in range(width):
-        lines[0] += empty_building_block if jj % 2 else top_line_building_block
-    for ii in range(height * size * 2):
-        new_line = ''
-        for jj in range(width):
-            new_line += building_blocks[(ii + size * (jj % 2)) % (size*2)]
-        lines.append(new_line)
-    for element in element_list:
-        x_center = int((size_y + 2 * size) * (element.rectangular_coordinates[0] + 0.5))
-        y = int(size * 2 * element.rectangular_coordinates[1] + 1 + (element.rectangular_coordinates[0] % 2 + 1) * size - int((len(element.text) + 1)/ 2))
-        for ii, chars in enumerate(element.text):
-            if ii >= size * 2 - 1:
-                break
-            space = size_y + 2 * min(ii, abs(ii + 1 - size * 2))
-            if space < len(chars):
-                chars = chars[0:space]
-            x = x_center - int(len(chars)/2)
-            lines[y + ii] = lines[y + ii][0: x] + chars + lines[y + ii][x + len(chars):]
-    output = '\n'.join(lines)
-    return output
+# def generate_visual_grid(element_list, width, height, size=3):
+#     ASPECT_RATIO = 1.7
+#     building_blocks = []
+#     size_y = int(round(size * ASPECT_RATIO)) + 2
+#     for ii in range(size):
+#         new_line = ' ' * (size - ii - 1) + "/" + ' ' * (size_y + ii *2) + "\\" + ' ' * (size - ii - 1)
+#         building_blocks.append(new_line)
+#     for ii in reversed(range(size)):
+#         if ii == 0:
+#             new_line = ' ' * (size - ii - 1) + "\\" + '_' * (size_y + ii * 2) + "/" + ' ' * (size - ii - 1)
+#         else:
+#             new_line = ' ' * (size - ii - 1) + "\\" + ' ' * (size_y + ii *2) + "/" + ' ' * (size - ii - 1)
+#         building_blocks.append(new_line)
+#     top_line_building_block = ' ' * (size)+ '_' * (size_y) + ' ' * (size)
+#     empty_building_block = ' ' * (size_y + 2 * size)
+#     lines = ['']
+#     for jj in range(width):
+#         lines[0] += empty_building_block if jj % 2 else top_line_building_block
+#     for ii in range(height * size * 2):
+#         new_line = ''
+#         for jj in range(width):
+#             new_line += building_blocks[(ii + size * (jj % 2)) % (size*2)]
+#         lines.append(new_line)
+#     for element in element_list:
+#         x_center = int((size_y + 2 * size) * (element.rectangular_coordinates[0] + 0.5))
+#         y = int(size * 2 * element.rectangular_coordinates[1] + 1 + (element.rectangular_coordinates[0] % 2 + 1) * size - int((len(element.text) + 1)/ 2))
+#         for ii, chars in enumerate(element.text):
+#             if ii >= size * 2 - 1:
+#                 break
+#             space = size_y + 2 * min(ii, abs(ii + 1 - size * 2))
+#             if space < len(chars):
+#                 chars = chars[0:space]
+#             x = x_center - int(len(chars)/2)
+#             lines[y + ii] = lines[y + ii][0: x] + chars + lines[y + ii][x + len(chars):]
+#     output = '\n'.join(lines)
+#     return output
 
 
 def generate_visual_grid(element_dict, min_x, min_y, max_x, max_y, size=3):
@@ -270,21 +270,22 @@ def generate_visual_grid(element_dict, min_x, min_y, max_x, max_y, size=3):
     element_rectangular_dict = {hex_obj.rectangular_coordinates: hex_obj for hex_obj in element_dict.values()}
     ASPECT_RATIO = 1.7
     full_building_blocks = []
-    size_y = int(round(size * ASPECT_RATIO)) + 2
+    size_x = int(round(size * ASPECT_RATIO)) + 2
+    block_width = size_x + 2 * 1
     for ii in range(size):
         if ii == 0:
-            new_line = ' ' * (size - ii - 1) + "/" + overbar * (size_y + ii * 2) + "\\" + ' ' * (size - ii - 1)
+            new_line = ' ' * (1 - ii - 1) + "/" + overbar * (size_x + ii * 2) + "\\" + ' ' * (1 - ii - 1)
         else:
-            new_line = ' ' * (size - ii - 1) + "/" + ' ' * (size_y + ii * 2) + "\\" + ' ' * (size - ii - 1)
+            new_line = ' ' * (1 - ii - 1) + "/" + ' ' * (size_x + ii * 2) + "\\" + ' ' * (1 - ii - 1)
         full_building_blocks.append(new_line)
     for ii in reversed(range(size)):
         if ii == 0:
-            new_line = ' ' * (size - ii - 1) + "\\" + '_' * (size_y + ii * 2) + "/" + ' ' * (size - ii - 1)
+            new_line = ' ' * (1 - ii - 1) + "\\" + '_' * (size_x + ii * 2) + "/" + ' ' * (1 - ii - 1)
         else:
-            new_line = ' ' * (size - ii - 1) + "\\" + ' ' * (size_y + ii * 2) + "/" + ' ' * (size - ii - 1)
+            new_line = ' ' * (1 - ii - 1) + "\\" + ' ' * (size_x + ii * 2) + "/" + ' ' * (1 - ii - 1)
         full_building_blocks.append(new_line)
-    # top_line_building_block = ' ' * (size)+ '_' * (size_y) + ' ' * (size)
-    empty_building_block = ' ' * (size_y + 2 * size)
+    # top_line_building_block = ' ' * (size)+ '_' * (size_x) + ' ' * (size)
+    # empty_building_block = ' ' * block_width
     lines = []
     # for jj in range(width):
     #     lines[0] += empty_building_block if jj % 2 else top_line_building_block
@@ -293,22 +294,26 @@ def generate_visual_grid(element_dict, min_x, min_y, max_x, max_y, size=3):
         for jj in range(width):
             # expected_rectangular_coordinates = (jj + min_x, (ii - size * (jj % 2) - ((min_x % 2)) + 1) // (size * 2) + min_y)
             expected_rectangular_coordinates = (jj + min_x, (ii - size * (jj % 2) - size * 2 * ((jj + 1) % 2)) // (size * 2) + min_y)
+            offset_index = ii % (size*2)
+            if jj == 0:
+                new_line += ' ' * (size - 1 - min(offset_index, 2 * size - 1 - offset_index))
+            building_block_index = (ii + size * (jj % 2)) % (size * 2)
             if expected_rectangular_coordinates in element_rectangular_dict.keys():
                 # building_block = full_building_blocks[(ii + size * (jj % 2)) % (size*2)]
                 # building_block = building_block[:5] + \
                 #                      str(expected_rectangular_coordinates[0]) + ',' + str(expected_rectangular_coordinates[1]) \
                 #                  + building_block[8:]
                 # print(ii, jj, expected_rectangular_coordinates)
-                new_line += full_building_blocks[(ii + size * (jj % 2)) % (size*2)]
+                new_line += full_building_blocks[building_block_index]
                 # new_line += building_block
             else:
-                new_line += empty_building_block
+                new_line += ' ' * len(full_building_blocks[building_block_index])
         lines.append(new_line)
     for element in element_dict.values():
         jj, ii = element.rectangular_coordinates
         adjusted_rectangular_coordinates = (jj - min_x,
                                             ii + ((jj) % 2) - min_y)   # - (min_y % 2))
-        x_center = int((size_y + 2 * size) * (adjusted_rectangular_coordinates[0] + 0.5))
+        x_center = int((size_x + size + 1) * (adjusted_rectangular_coordinates[0] + 0.5)) + 1
         y = int(size * 2 * adjusted_rectangular_coordinates[1] + 1 + (adjusted_rectangular_coordinates[0] % 2 + 1) * size - int((len(element.text) + 1) / 2))
         text_broken_up = element.text
         if len(text_broken_up) > 2 * size:
@@ -317,7 +322,7 @@ def generate_visual_grid(element_dict, min_x, min_y, max_x, max_y, size=3):
         for ind, chars in enumerate(text_broken_up):
             if ind >= size * 2 - 1:
                 break
-            space = size_y + 2 * min(ind, abs(ind + 1 - size * 2))
+            space = size_x + 2 * min(ind, abs(ind + 1 - size * 2))
             if space < len(chars):
                 chars = chars[0:space]
             x = x_center - int(len(chars)/2)
@@ -326,6 +331,12 @@ def generate_visual_grid(element_dict, min_x, min_y, max_x, max_y, size=3):
     lines = remove_empty_lines(lines)
     output = '\n'.join(lines)
     return output
+
+def remove_interhex_space(lines, size, width, block_width):
+    for ii in range(len(lines)):
+        for jj in range(width):
+            pass
+
 
 
 def remove_empty_lines(lines):
@@ -401,13 +412,13 @@ if __name__ == '__main__':
     E = Hex((1, 0, -1), 'more stuff')
     F = Hex((-1, 0, 1), 'he not name')
     element_list = [A, B, C, D, E, F]
-    G = Grid(element_list, size=3)
+    G = Grid(element_list, size=7)
     g = generate_radial_hex_array(1)
     g = generate_radial_hex_array(3)
     h = generate_radial_hex_array(3, False)
     h[(3, -2, -1)].change(True)
-    h.where(True)
-    # print(h)
+    print(h.where(True))
+    print(h)
     for element in g.element_list:
         element.text = ['rad =', str(element.get_radius())]
     print(G)
