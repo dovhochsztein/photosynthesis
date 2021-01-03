@@ -29,12 +29,12 @@ class Hex:
 
     Cubic:                              Rectangular
        _______                            _______
-      /  +y   \  \           /           /   +y  \  \           /
+      /+y     \  \           /           /   +y  \  \           /
      /         \  \         /           /   ^     \  \         /
-    /           \  \_______/           /    | __\+x\  \_______/
+    /         +x\  \_______/           /    | __\+x\  \_______/
     \           /  /       \           \        /  /  /       \
-     \+z     +x/  /         \           \         /  /         \
-      \_______/  /           \           \_______/  /           \
+     \         /  /         \           \         /  /         \
+      \+z_____/  /           \           \_______/  /           \
       /       \  \           /           /       \  \           /
      /         \  \         /           /         \  \         /
     /           \  \_______/           /           \  \_______/
@@ -88,6 +88,11 @@ class Hex:
     def __repr__(self):
         return f'Hex({self.cubic_coordinates}, {repr(self.obj)})'
 
+def complete_cubic_coordinates(incomplete_cubic_coordinates):
+    cubic_coordinates = (incomplete_cubic_coordinates[0],
+                         incomplete_cubic_coordinates[1],
+                         -incomplete_cubic_coordinates[0] - incomplete_cubic_coordinates[1])
+    return cubic_coordinates
 
 def convert_cubic_coordinates_to_rectangular(cubic_coordinates):
     rectangular_coordinates = (cubic_coordinates[0], int(cubic_coordinates[2] + (cubic_coordinates[0] - (cubic_coordinates[0] % 2)) / 2))
@@ -173,8 +178,42 @@ class Grid:
                     output.append(element.cubic_coordinates)
         return output
 
+    def get_subgrid(self, coordinate_list):
+        #todo: skip indices it cant find
+        if len(coordinate_list) == 0:
+            return None
+        try:
+            return Grid([self[coordinates] for coordinates in coordinate_list])
+        except:
+            raise IndexError
+
     def __getitem__(self, key):
-        return self.element_dict[key]
+        if len(key) in [2, 3]:
+            print(type(key[0]))
+            print(key)
+            if isinstance(key[0], slice) or isinstance(key[1], slice):
+                starting_index = list()
+                ending_index = list()
+                if isinstance(key[0], slice):
+                    starting_index.append(key[0].start)
+                    ending_index.append(key[0].stop)
+                else:
+                    starting_index.append(key[0])
+                    ending_index.append(key[0])
+                if isinstance(key[1], slice):
+                    starting_index.append(key[1].start)
+                    ending_index.append(key[1].stop)
+                else:
+                    starting_index.append(key[0])
+                    ending_index.append(key[0])
+                starting_index = complete_cubic_coordinates(starting_index)
+                ending_index = complete_cubic_coordinates(ending_index)
+                coordinate_list = generate_rhombal_array_indices(starting_index, ending_index)
+                return self.get_subgrid(coordinate_list)
+            else:
+                return self.element_dict[tuple(key)]
+        else:
+            return None
 
     def __getslice__(self, i, j, sequence):
         return 'getslice'
@@ -339,11 +378,10 @@ def generate_visual_grid(element_dict, min_x, min_y, max_x, max_y, size=3):
     output = '\n'.join(lines)
     return output
 
-def remove_interhex_space(lines, size, width, block_width):
-    for ii in range(len(lines)):
-        for jj in range(width):
-            pass
-
+# def remove_interhex_space(lines, size, width, block_width):
+#     for ii in range(len(lines)):
+#         for jj in range(width):
+#             pass
 
 
 def remove_empty_lines(lines):
@@ -357,14 +395,40 @@ def remove_empty_lines(lines):
         lines = []
     return lines
 
+def one_hot(length, index):
+    output = np.zeros(length)
+    output[index] = 1
+    return output
 
+def generate_rhombal_array_indices(starting_coordinates, ending_coordinates):
+    coordinate_list = [starting_coordinates]
+    coordinate_list = list()
+    axis_diffs = [ending_coordinate - starting_coordinate for
+                  (starting_coordinate, ending_coordinate) in
+                  zip(starting_coordinates, ending_coordinates)]
+    pos_axis_diffs = np.abs(axis_diffs)
+    sign_axis_diffs = np.sign(axis_diffs)
+    if np.all(pos_axis_diffs):
+        # the two hexes are not aligned along any axis
+        long_axis = np.argmax(np.abs(axis_diffs))
+        loop_axes = tuple({0, 1, 2} - {long_axis})
+        for ii in range(int(pos_axis_diffs[loop_axes[0]] + 1)):
+            for jj in range(int(pos_axis_diffs[loop_axes[1]] + 1)):
+                coordinate_list.append(tuple(np.array(starting_coordinates)
+                                             + ii * one_hot(3, loop_axes[0]) * sign_axis_diffs
+                                             + jj * one_hot(3, loop_axes[1]) * sign_axis_diffs
+                                             + (ii+jj) * one_hot(3, long_axis) * sign_axis_diffs
+                                             ))
+    else:
+        # the two hexes are aligned so the result is a  'flat rhombus' (line)
+        for ii in range(max(pos_axis_diffs) + 1):
+            coordinate_list.append(tuple(np.array(starting_coordinates) + ii * sign_axis_diffs))
+    return coordinate_list
 
-def generate_radial_hex_array(radius, default_obj=None):
-    """generates an empty array with given radius (radius = 0 gives a single hex)
-    """
-    # if type(default_obj) != Goes_In_Hex:
-    #     default_obj = Goes_In_Hex(value=default_obj, text=[str(default_obj)])
-    element_list = [Hex((0, 0, 0), default_obj)]
+def generate_radial_array_indices(radius, origin=None):
+    if origin is None:
+        origin = (0, 0, 0)
+    coordinate_list = [origin]
     for xx in range(-radius, radius + 1):
         for yy in range(-radius, radius + 1):
             if xx == 0 and yy == 0:
@@ -372,7 +436,17 @@ def generate_radial_hex_array(radius, default_obj=None):
             zz = - xx - yy
             if abs(zz) > radius:
                 continue
-            element_list.append(Hex((xx, yy, zz), default_obj))
+            coordinate_list.append((xx + origin[0], yy + origin[1], zz + origin[2]))
+    return coordinate_list
+
+
+def generate_radial_hex_array(radius, default_obj=None, origin=None):
+    """generates an empty array with given radius (radius = 0 gives a single hex)
+    """
+    # if type(default_obj) != Goes_In_Hex:
+    #     default_obj = Goes_In_Hex(value=default_obj, text=[str(default_obj)])
+    coordinate_list = generate_radial_array_indices(radius, origin)
+    element_list = [Hex(coordinates, default_obj) for coordinates in coordinate_list]
     grid = Grid(element_list)
     return grid
 
@@ -422,6 +496,8 @@ if __name__ == '__main__':
     G = Grid(element_list, size=7)
     g = generate_radial_hex_array(1)
     g = generate_radial_hex_array(3)
+    R = g[-2:0, -1:0, 3:0]
+    print(R)
     h = generate_radial_hex_array(3, False)
     h[(3, -2, -1)].change(True)
     print(h.where(True))
