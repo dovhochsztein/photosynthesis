@@ -88,15 +88,18 @@ class Hex:
     def __repr__(self):
         return f'Hex({self.cubic_coordinates}, {repr(self.obj)})'
 
+
 def complete_cubic_coordinates(incomplete_cubic_coordinates):
     cubic_coordinates = (incomplete_cubic_coordinates[0],
                          incomplete_cubic_coordinates[1],
                          -incomplete_cubic_coordinates[0] - incomplete_cubic_coordinates[1])
     return cubic_coordinates
 
+
 def convert_cubic_coordinates_to_rectangular(cubic_coordinates):
     rectangular_coordinates = (cubic_coordinates[0], int(cubic_coordinates[2] + (cubic_coordinates[0] - (cubic_coordinates[0] % 2)) / 2))
     return rectangular_coordinates
+
 
 def convert_rectangular_coordinates_to_cubic(rectangular_coordinates):
     cubic_coordinates = (rectangular_coordinates[0], 0, rectangular_coordinates[1] - (rectangular_coordinates[0] - (rectangular_coordinates[0] % 1)) / 2)
