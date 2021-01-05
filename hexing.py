@@ -315,7 +315,7 @@ def distance(cubic_coordinates_1, cubic_coordinates_2):
 def generate_visual_grid(element_dict, min_x, min_y, max_x, max_y, size=3):
     width = max_x - min_x + 1
     height = max_y - min_y + 2
-    overbar = u"\u203E"
+    overbar = u'\u0305'
     element_rectangular_dict = {hex_obj.rectangular_coordinates: hex_obj for hex_obj in element_dict.values()}
     ASPECT_RATIO = 1.7
     full_building_blocks = []
