@@ -39,9 +39,9 @@ def belongs_to_player(tree, player):
 
 
 # board = generate_radial_hex_array(3)
-# board[(-2, -1, 3)].change(Tree(1, 3))
-# board[(-1, 1, 0)].change(Tree(1, 2))
-# board[(-2, 0, 2)].change(Tree(1, 3))
+# board[(-2, -1, 3)] = Tree(1, 3)
+# board[(-1, 1, 0)] = Tree(1, 2)
+# board[(-2, 0, 2)] = Tree(1, 3))
 # board.where(Tree(1, 3))
 # board.where(None)
 # print(board)
@@ -222,7 +222,7 @@ class State:
         for displacement in range(1, height + 1):
             blocked_coordinates = translation(coordinates, direction=self.sun_position, distance=displacement)
             try:
-                self.currently_blocked[height - 1][blocked_coordinates].change(True)
+                self.currently_blocked[height - 1][blocked_coordinates] = True
 
             except: KeyError
 
@@ -242,39 +242,39 @@ class State:
             if element.obj is not None:
                 height = element.obj.height
                 player = element.obj.player
-                if height > 0 and not self.currently_blocked[height - 1][coordinate].obj:
+                if height > 0 and not self.currently_blocked[height - 1][coordinate]:
                     self.player_boards[player].money += element.obj.height
 
     def check_plant(self, player, spawn_coordinates, target_coordinates, for_execution=None):
 
         if for_execution is None:
             for_execution = False
-        if self.board[spawn_coordinates].obj is None or self.board[spawn_coordinates].obj.player != player:
+        if self.board[spawn_coordinates] is None or self.board[spawn_coordinates].player != player:
             if for_execution:
                 raise ValueError('cannot plant from there, no appropriate tree to spawn from')
             else:
                 return False
-        if distance(spawn_coordinates, target_coordinates) > self.board[spawn_coordinates].obj.height:
+        if distance(spawn_coordinates, target_coordinates) > self.board[spawn_coordinates].height:
             if for_execution:
                 raise ValueError('cannot plant there, it is too far from spawning tree')
             else:
                 return False
-        if self.board[target_coordinates].obj is not None:
+        if self.board[target_coordinates] is not None:
             if for_execution:
                 raise ValueError('cannot plant there - it is occupied')
             else:
                 return False
-        if self.spaces_accessed[player][target_coordinates].obj:
+        if self.spaces_accessed[player][target_coordinates]:
             if for_execution:
                 raise ValueError('cannot plant there, space already used this turn')
             else:
                 return False
-        if self.spaces_accessed[player][spawn_coordinates].obj:
+        if self.spaces_accessed[player][spawn_coordinates]:
             if for_execution:
                 raise ValueError('cannot plant from there, space already used this turn')
             else:
                 return False
-        if self.block_planting_upgrading and self.currently_blocked[0][target_coordinates].obj:
+        if self.block_planting_upgrading and self.currently_blocked[0][target_coordinates]:
             if for_execution:
                 raise ValueError('cannot plant there - it is blocked')
             else:
@@ -288,21 +288,21 @@ class State:
 
     def plant(self, player, spawn_coordinates, target_coordinates):
         self.check_plant(player, spawn_coordinates, target_coordinates, for_execution=True)
-        self.board[target_coordinates].change(Tree(player, 0))
+        self.board[target_coordinates] = Tree(player, 0)
         self.player_boards[player].place(0)
-        self.spaces_accessed[player][target_coordinates].change(True)
-        self.spaces_accessed[player][spawn_coordinates].change(True)
-        self.player_has_tree[player][target_coordinates].change(True)
+        self.spaces_accessed[player][target_coordinates] = True
+        self.spaces_accessed[player][spawn_coordinates] = True
+        self.player_has_tree[player][target_coordinates] = True
 
     def check_special_plant(self, player, coordinates, for_execution=None):
         if for_execution is None:
             for_execution = False
-        if self.board[coordinates].obj is not None:
+        if self.board[coordinates] is not None:
             if for_execution:
                 raise ValueError('cannot plant there - it is occupied')
             else:
                 return False
-        if self.board[coordinates].get_radius() != self.board_radius:
+        if max([abs(c) for c in coordinates]) != self.board_radius:
             if for_execution:
                 raise ValueError('cannot plant there - it is not in the outer ring')
             else:
@@ -311,41 +311,41 @@ class State:
 
     def special_plant(self, player, coordinates):
         self.check_special_plant(player, coordinates, for_execution=True)
-        self.board[coordinates].change(Tree(player, 1))
+        self.board[coordinates] = Tree(player, 1)
         self.player_boards[player].place(1)
-        self.player_has_tree[player][coordinates].change(True)
+        self.player_has_tree[player][coordinates] = True
 
     def check_upgrade(self, player, coordinates, for_execution=None):
         if for_execution is None:
             for_execution = False
-        if self.board[coordinates].obj is None or self.board[coordinates].obj.player != player:
+        if self.board[coordinates] is None or self.board[coordinates].player != player:
             if for_execution:
                 raise ValueError('cannot upgrade there, no appropriate tree to upgrade')
             else:
                 return False
-        # if self.board[coordinates].obj.height == 2:
+        # if self.board[coordinates].height == 2:
         #     pass
-        if self.board[coordinates].obj.height == 3:
+        if self.board[coordinates].height == 3:
             if for_execution:
                 raise ValueError('cannot upgrade there - tree is already full size')
             else:
                 return False
-        if self.block_planting_upgrading and self.currently_blocked[self.board[coordinates].obj.height][coordinates].obj:
+        if self.block_planting_upgrading and self.currently_blocked[self.board[coordinates].height][coordinates]:
             if for_execution:
                 raise ValueError('cannot upgrade there - it is blocked')
             else:
                 return False
-        if self.player_boards[player].available[self.board[coordinates].obj.height + 1] == 0:
+        if self.player_boards[player].available[self.board[coordinates].height + 1] == 0:
             if for_execution:
                 raise ValueError('cannot upgrade there - no appropriate tree available')
             else:
                 return False
-        if self.spaces_accessed[player][coordinates].obj:
+        if self.spaces_accessed[player][coordinates]:
             if for_execution:
                 raise ValueError('cannot plant there, space already used this turn')
             else:
                 return False
-        if self.player_boards[player].money < self.board[coordinates].obj.height + 1:
+        if self.player_boards[player].money < self.board[coordinates].height + 1:
             if for_execution:
                 raise ValueError('cannot upgrade, not enough money')
             else:
@@ -354,21 +354,21 @@ class State:
 
     def upgrade(self, player, coordinates):
         self.check_upgrade(player, coordinates, for_execution=True)
-        self.board[coordinates].change(Tree(player, self.board[coordinates].obj.height + 1))
-        self.player_boards[player].place(self.board[coordinates].obj.height)
-        self.player_boards[player].return_to_board(self.board[coordinates].obj.height - 1)
-        self.spaces_accessed[player][coordinates].change(True)
-        self.update_currently_blocked(self.board[coordinates].obj.height, coordinates)
+        self.board[coordinates] = Tree(player, self.board[coordinates].height + 1)
+        self.player_boards[player].place(self.board[coordinates].height)
+        self.player_boards[player].return_to_board(self.board[coordinates].height - 1)
+        self.spaces_accessed[player][coordinates] = True
+        self.update_currently_blocked(self.board[coordinates].height, coordinates)
 
     def check_collect(self, player, coordinates, for_execution=None):
         if for_execution is None:
             for_execution = False
-        if self.board[coordinates].obj is None or self.board[coordinates].obj.player != player or self.board[coordinates].obj.height != 3:
+        if self.board[coordinates] is None or self.board[coordinates].player != player or self.board[coordinates].height != 3:
             if for_execution:
                 raise ValueError('cannot collect there, no appropriate tree to collect')
             else:
                 return False
-        if self.spaces_accessed[player][coordinates].obj:
+        if self.spaces_accessed[player][coordinates]:
             if for_execution:
                 raise ValueError('cannot collect there, space already used this turn')
             else:
@@ -382,17 +382,17 @@ class State:
 
     def collect(self, player, coordinates):
         self.check_collect(player, coordinates, for_execution=True)
-        radius = self.board[coordinates].get_radius()
+        radius = max([abs(c) for c in coordinates])
         while len(self.vp_stacks[radius]) == 0:
             radius += 1
             if radius == 3:
                 break
         score = self.vp_stacks[radius].pop()
         self.player_boards[player].score += score
-        self.board[coordinates].change(None)
-        self.spaces_accessed[player][coordinates].change(True)
+        self.board[coordinates] = None
+        self.spaces_accessed[player][coordinates] = True
         self.update_currently_blocked_from_scratch()
-        self.player_has_tree[player][coordinates].change(False)
+        self.player_has_tree[player][coordinates] = False
         # print(f'player: {player} scored {score}')
 
     def check_purchase(self, player, size, for_execution=None):
@@ -582,7 +582,7 @@ class State:
         for coordinates in has_tree:
             layers = [0, 5, 11, 18, 25, 31, 36]
             index = layers[coordinates[0] + 3] + coordinates[1] + max(0, (-3 - coordinates[0]))
-            tile_features[index] = (self.board[coordinates].obj.height + 1) / tree_size_normalizer
+            tile_features[index] = (self.board[coordinates].height + 1) / tree_size_normalizer
         output.extend(tile_features)
 
         for plr in range(self.num_players):
@@ -592,7 +592,7 @@ class State:
                 for coordinates in opp_has_tree:
                     layers = [0, 5, 11, 18, 25, 31, 36]
                     index = layers[coordinates[0] + 3] + coordinates[1] + max(0, (-3 - coordinates[0]))
-                    opp_tile_features[index] = (self.board[coordinates].obj.height + 1) / tree_size_normalizer
+                    opp_tile_features[index] = (self.board[coordinates].height + 1) / tree_size_normalizer
                 output.extend(opp_tile_features)
 
         return np.array([output])

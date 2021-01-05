@@ -30,11 +30,11 @@ learning_player_4 = learning_player(learning_policy_2, starting_learning_object=
 #     learning_player_1 = pickle.load(file)
 # with open('player2.player', 'rb') as file:
 #     learning_player_2 = pickle.load(file)
-
-with open('player10.player', 'rb') as file:
-    learning_player_10 = pickle.load(file)
-with open('player20.player', 'rb') as file:
-    learning_player_20 = pickle.load(file)
+#
+# with open('player10.player', 'rb') as file:
+#     learning_player_10 = pickle.load(file)
+# with open('player20.player', 'rb') as file:
+#     learning_player_20 = pickle.load(file)
 
 
 
