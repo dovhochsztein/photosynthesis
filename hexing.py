@@ -2,6 +2,7 @@ from collections import namedtuple
 from copy import *
 import numpy as np
 
+defaul_sie = 3
 
 class Goes_In_Hex():
     def __init__(self, value=None, text=[]):
@@ -15,7 +16,6 @@ class Goes_In_Hex():
 # remove element list,
 # fix print text to consider new lines without requiring list of strings
 # get rid of changing rectangular coordinates
-# add repr to Grid
 # consider multiple versions of rectangular coordinates
 
 class Hex:
@@ -111,7 +111,7 @@ def convert_rectangular_coordinates_to_cubic(rectangular_coordinates):
 
 class Grid:
     """heagonal grid consisting of a list of hexagonal elements"""
-    def __init__(self, element_list, size=3):
+    def __init__(self, element_list, size=defaul_sie):
         self.element_list = element_list
         self.origin = None
         rectangular_coordinates_list = [element.rectangular_coordinates for element in element_list]
@@ -410,6 +410,23 @@ class Grid:
             else:
                 pass
 
+    def __delitem__(self, key):
+        unpacked_key = self.unpack_key(key)
+        if isinstance(unpacked_key, list):
+            for coordinate in unpacked_key:
+                if coordinate in self.element_dict:
+                    self.element_dict.pop(coordinate)
+                else:
+                    pass
+        elif isinstance(unpacked_key, tuple):
+            if unpacked_key in self.element_dict:
+                self.element_dict.pop(unpacked_key)
+                #remove from element_list
+            else:
+                pass
+        else:
+            pass
+
     def __str__(self):
         return generate_visual_grid(self.element_dict, self.min_x, self.min_y, self.max_x, self.max_y, size=self.size)
 
@@ -445,7 +462,7 @@ def distance(cubic_coordinates_1, cubic_coordinates_2):
     return sum([delta_x, delta_y, delta_z]) - max(delta_x, delta_y, delta_z)
 
 
-def generate_visual_grid(element_dict, min_x, min_y, max_x, max_y, size=3):
+def generate_visual_grid(element_dict, min_x, min_y, max_x, max_y, size=defaul_sie):
     width = max_x - min_x + 1
     height = max_y - min_y + 2
     overbar = u'\u0305'
@@ -517,10 +534,12 @@ def remove_empty_lines(lines):
         lines = []
     return lines
 
+
 def one_hot(length, index):
     output = np.zeros(length).astype(int)
     output[index] = 1
     return output
+
 
 def generate_rhombal_array_indices(starting_coordinates, ending_coordinates):
     coordinate_list = list()
@@ -563,7 +582,7 @@ def generate_radial_array_indices(radius, origin=None):
 
 
 
-def generate_rhombal_array_indices_from_origin(side_length, orientation, origin=None):
+def generate_angular_rhombal_array_indices(side_length, orientation, origin=None):
     if origin is None:
         origin = (0, 0, 0)
     coordinate_list = [origin]
@@ -591,17 +610,22 @@ def generate_rhombal_array_indices_from_origin(side_length, orientation, origin=
     return coordinate_list
 
 
+def x_y_z_sign_convention(orientation):
+    x_constraint = 2 * (((orientation - 0) % 6) // 3) - 1
+    y_constraint = 2 * (((orientation + 2) % 6) // 3) - 1
+    z_constraint = 2 * (((orientation - 2) % 6) // 3) - 1
+    return x_constraint, y_constraint, z_constraint
 
-def generate_triangular_array_indices(side_length, orientation, origin=None):
+
+def generate_triangular_array_indices(side_length, orientation=None, origin=None):
     if origin is None:
         origin = (0, 0, 0)
+    else:
+        origin = tuple(origin)
+    if orientation is None:
+        orientation = 0
     coordinate_list = [origin]
-    #todo fix constraint loop
-    x_constraint = 2 * (orientation // 3) - 1
-    orientation = (orientation - 1) % 6
-    y_constraint = 2 * (orientation // 3) - 1
-    orientation = (orientation - 1) % 6
-    z_constraint = 2 * (orientation // 3) - 1
+    x_constraint, y_constraint, z_constraint = x_y_z_sign_convention(orientation)
 
     for xx in range(-side_length, side_length + 1):
         if x_constraint and xx and np.sign(xx) != x_constraint:
@@ -620,42 +644,56 @@ def generate_triangular_array_indices(side_length, orientation, origin=None):
     return coordinate_list
 
 
-
 def generate_star_array_indices(radius, origin=None):
     if origin is None:
         origin = (0, 0, 0)
-    coordinate_list = [origin]
-    for xx in range(-radius, radius + 1):
-        for yy in range(-radius, radius + 1):
-            if xx == 0 and yy == 0:
-                continue
-            zz = - xx - yy
-            if abs(zz) > radius:
-                continue
-            coordinate_list.append((xx + origin[0], yy + origin[1], zz + origin[2]))
+    center_hex_coordinates = generate_radial_array_indices(radius, origin)
+    edge_triangles = list()
+    for orientation in range(6):
+        constraints = np.array(x_y_z_sign_convention(orientation))
+        majority_sign = sum(constraints)
+        triangle_origin = ((constraints != majority_sign) + 1) * constraints * radius
+        triangle_coordinates = generate_triangular_array_indices(side_length=radius,
+                                                                 orientation=(orientation + 3) % 6,
+                                                                 origin=triangle_origin)
+        edge_triangles.append(triangle_coordinates)
+    coordinate_list = set().union(*(edge_triangles+[center_hex_coordinates]))
     return coordinate_list
 
 
-def full(mode='radial', default_obj=None, origin=None, radius=None, starting_coordinates=None, ending_coordinates=None):
+def full(mode='radial', fill_value=None, origin=None, radius=None, starting_coordinates=None, ending_coordinates=None,
+         side_length=None, orientation=None, size=defaul_sie):
 
     if mode == 'radial':
         assert isinstance(radius, int)
         coordinate_list = generate_radial_array_indices(radius, origin)
+    if mode == 'star':
+        assert isinstance(radius, int)
+        coordinate_list = generate_star_array_indices(radius, origin)
     elif mode == 'rhombal':
         assert isinstance(starting_coordinates, int) and isinstance(ending_coordinates, int)
         coordinate_list = generate_rhombal_array_indices(starting_coordinates, ending_coordinates)
-    element_list = [Hex(coordinates, default_obj) for coordinates in coordinate_list]
-    grid = Grid(element_list)
+    elif mode == 'triangular':
+        assert isinstance(side_length, int)
+        coordinate_list = generate_triangular_array_indices(side_length, orientation, origin)
+    elif mode == 'angular_rhomal':
+        assert isinstance(side_length, int)
+        coordinate_list = generate_angular_rhombal_array_indices(side_length, orientation, origin)
+    else:
+        coordinate_list = [(0, 0, 0)]
+
+    element_list = [Hex(coordinates, fill_value) for coordinates in coordinate_list]
+    grid = Grid(element_list, size=size)
     return grid
 
 
-def generate_radial_hex_array(radius, default_obj=None, origin=None):
+def generate_radial_hex_array(radius, fill_value=None, origin=None):
     """generates an empty array with given radius (radius = 0 gives a single hex)
     """
-    # if type(default_obj) != Goes_In_Hex:
-    #     default_obj = Goes_In_Hex(value=default_obj, text=[str(default_obj)])
+    # if type(fill_value) != Goes_In_Hex:
+    #     fill_value = Goes_In_Hex(value=fill_value, text=[str(fill_value)])
     coordinate_list = generate_radial_array_indices(radius, origin)
-    element_list = [Hex(coordinates, default_obj) for coordinates in coordinate_list]
+    element_list = [Hex(coordinates, fill_value) for coordinates in coordinate_list]
     grid = Grid(element_list)
     return grid
 
@@ -675,13 +713,6 @@ def hexwise_operation(grids, operation):
 
 if __name__ == '__main__':
 
-    A = Hex((0, 1, -1), Goes_In_Hex('First', ['the', 'quick']))
-    B = Hex((1, -1, 0), Goes_In_Hex('Second', ['brown', 'fox', 'jumps']))
-    C = Hex((0, -1, 1), Goes_In_Hex('Third', ['over']))
-    D = Hex((-1, 1, 0), Goes_In_Hex('Fourth', ['the', 'lazy', 'dog', 'end']))
-    E = Hex((1, 0, -1), Goes_In_Hex('Third', ['more', 'stuff']))
-    F = Hex((-1, 0, 1), Goes_In_Hex('Fourth', ['he', 'not', 'name']))
-
     A = Hex((0, 1, -1), 'the quick')
     B = Hex((1, -1, 0), 'brown fox jumps')
     C = Hex((0, -1, 1), 'over')
@@ -694,6 +725,17 @@ if __name__ == '__main__':
     g = generate_radial_hex_array(3)
     R = g[-2:0, -1:0, 3:0]
     print(R)
+    t = full(mode='triangular', side_length=3, orientation=3, fill_value='tri')
+    print(t)
+    r = full(mode='radial', radius=2, fill_value='rad')
+    print(r)
+    s = full(mode='star', radius=3, fill_value='star')
+    print(s)
+    s = full(mode='star', radius=4, fill_value='s', size=2)
+    print(s)
+
+
+
     h = generate_radial_hex_array(3, False)
     # h[(3, -2, -1)].change(True)
     h[3, -1, -2] = True
