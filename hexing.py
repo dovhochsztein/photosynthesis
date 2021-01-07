@@ -111,18 +111,52 @@ def convert_rectangular_coordinates_to_cubic(rectangular_coordinates):
 
 class Grid:
     """heagonal grid consisting of a list of hexagonal elements"""
-    def __init__(self, element_list, size=defaul_sie):
-        self.element_list = element_list
+
+    def empty(self):
+        self.element_dict = {}
         self.origin = None
-        rectangular_coordinates_list = [element.rectangular_coordinates for element in element_list]
+        self.min_x = None
+        self.min_y = None
+        self.max_x = None
+        self.max_y = None
+        self.extents = None
+
+    def __init__(self, elements=None, size=defaul_sie):
+        self.size=size
+        if elements is None:
+            self.empty()
+            return
+        if isinstance(elements, Hex):
+            elements = [elements]
+        try:
+            if len(elements) == 0:
+                self.empty()
+                return
+        except TypeError:
+            self.empty()
+            return
+
+        if isinstance(elements, dict):
+            self.element_dict = {coordinates: element if isinstance(element, Hex) else Hex(coordinates, element) for coordinates, element in elements.items()}
+            # if isinstance(elements.values()[0], Hex):
+            #     self.element_dict = {coordinates: element for coordinates, element in elements.items()}
+        elif isinstance(elements, list):
+            if isinstance(elements[0], Hex):
+                self.element_dict = {element.cubic_coordinates: element for element in elements}
+            elif (isinstance(elements[0], list) or isinstance(elements[0], tuple)) and len(elements[0]) == 2:
+                self.element_dict = {coordinates: Hex(coordinates, element) for coordinates, element in elements}
+            else:
+                raise TypeError(elements)
+        self.element_list = self.element_dict.values()
+        self.origin = None
+        rectangular_coordinates_list = [element.rectangular_coordinates for element in self.element_dict.values()]
         x_list = [coord[0] for coord in rectangular_coordinates_list]
         y_list = [coord[1] for coord in rectangular_coordinates_list]
         self.min_x = int(min(x_list))
         self.min_y = int(min(y_list))
         self.max_x = int(max(x_list))
         self.max_y = int(max(y_list))
-        self.size = size
-        self.element_dict = {element.cubic_coordinates: element for element in self.element_list}
+        # self.element_dict = {element.cubic_coordinates: element for element in self.element_list}
         xx_list = [coordinate[0] for coordinate in list(self.element_dict.keys())]
         yy_list = [coordinate[1] for coordinate in list(self.element_dict.keys())]
         zz_list = [coordinate[2] for coordinate in list(self.element_dict.keys())]
@@ -296,19 +330,25 @@ class Grid:
 
 
     def update_min_max(self, cubic_coordinates, rectangular_coordinates):
-        if rectangular_coordinates[0] < self.min_x:
+
+        if self.min_x is None or rectangular_coordinates[0] < self.min_x:
             self.min_x = int(rectangular_coordinates[0])
-        elif rectangular_coordinates[0] > self.max_x:
+        if self.max_x is None or rectangular_coordinates[0] > self.max_x:
             self.max_x = int(rectangular_coordinates[0])
-        if rectangular_coordinates[1] < self.min_y:
+        if self.min_y is None or rectangular_coordinates[1] < self.min_y:
             self.min_y = int(rectangular_coordinates[1])
-        elif rectangular_coordinates[1] > self.max_y:
+        if self.max_y is None or rectangular_coordinates[1] > self.max_y:
             self.max_y = int(rectangular_coordinates[1])
-        for index in range(len(cubic_coordinates)):
-            if self.extents[index][0] > cubic_coordinates[index]:
-                self.extents[index][0] = cubic_coordinates[index]
-            if self.extents[index][1] < cubic_coordinates[index]:
-                self.extents[index][1] = cubic_coordinates[index]
+        if self.extents is None:
+            self.extents = [[cubic_coordinates[0], cubic_coordinates[0]],
+                            [cubic_coordinates[1], cubic_coordinates[1]],
+                            [cubic_coordinates[2], cubic_coordinates[2]],]
+        else:
+            for index in range(len(cubic_coordinates)):
+                if self.extents[index][0] > cubic_coordinates[index]:
+                    self.extents[index][0] = cubic_coordinates[index]
+                if self.extents[index][1] < cubic_coordinates[index]:
+                    self.extents[index][1] = cubic_coordinates[index]
 
     def add_hex(self, hex):
         if hex.cubic_coordinates in self.element_dict:
