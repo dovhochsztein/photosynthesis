@@ -1,15 +1,11 @@
-from collections import namedtuple
 from copy import *
-import numpy as np
 
-defaul_sie = 3
-
-class Goes_In_Hex():
-    def __init__(self, value=None, text=[]):
-        self.value = value
-        self.text = text
-    def __str__(self):
-        return str(self.text)
+from array_index_generation import generate_rhombal_array_indices, generate_radial_array_indices, \
+    generate_angular_rhombal_array_indices, generate_triangular_array_indices, generate_star_array_indices
+from constants import defaul_sie
+from math_utilities import complete_cubic_coordinates
+from grid_utilities import unpack_key
+from print_utilities import generate_visual_grid
 
 
 # todo:
@@ -80,37 +76,8 @@ class Hex:
         return f'Hex({self.cubic_coordinates}, {repr(self.obj)})'
 
 
-def complete_cubic_coordinates(incomplete_cubic_coordinates):
-    if len(incomplete_cubic_coordinates) == 2 or incomplete_cubic_coordinates[2] is None:
-        cubic_coordinates = (incomplete_cubic_coordinates[0],
-                             incomplete_cubic_coordinates[1],
-                             -incomplete_cubic_coordinates[0] - incomplete_cubic_coordinates[1])
-    elif incomplete_cubic_coordinates[0] is None:
-        cubic_coordinates = (-incomplete_cubic_coordinates[1] - incomplete_cubic_coordinates[2],
-                             incomplete_cubic_coordinates[1],
-                             incomplete_cubic_coordinates[2],)
-    elif incomplete_cubic_coordinates[1] is None:
-        cubic_coordinates = (incomplete_cubic_coordinates[0],
-                             -incomplete_cubic_coordinates[0] - incomplete_cubic_coordinates[2],
-                             incomplete_cubic_coordinates[2],)
-    else:
-        cubic_coordinates = incomplete_cubic_coordinates
-    return cubic_coordinates
-
-
-def convert_cubic_coordinates_to_rectangular(cubic_coordinates):
-    rectangular_coordinates = (cubic_coordinates[0], int(cubic_coordinates[2] + (cubic_coordinates[0] - (cubic_coordinates[0] % 2)) / 2))
-    return rectangular_coordinates
-
-
-def convert_rectangular_coordinates_to_cubic(rectangular_coordinates):
-    cubic_coordinates = (rectangular_coordinates[0], 0, rectangular_coordinates[1] - (rectangular_coordinates[0] - (rectangular_coordinates[0] % 1)) / 2)
-    cubic_coordinates = (cubic_coordinates[0], -cubic_coordinates[0] - cubic_coordinates[2], cubic_coordinates[2])
-    return cubic_coordinates
-
-
 class Grid:
-    """heagonal grid consisting of a list of hexagonal elements"""
+    """heagonal grid consisting of a hexagonal elements"""
 
     def empty(self):
         self.element_dict = {}
@@ -147,7 +114,7 @@ class Grid:
                 self.element_dict = {coordinates: Hex(coordinates, element) for coordinates, element in elements}
             else:
                 raise TypeError(elements)
-        self.element_list = self.element_dict.values()
+        self.element_list = list(self.element_dict.values())
         self.origin = None
         rectangular_coordinates_list = [element.rectangular_coordinates for element in self.element_dict.values()]
         x_list = [coord[0] for coord in rectangular_coordinates_list]
@@ -369,7 +336,6 @@ class Grid:
                     output.append(element.cubic_coordinates)
         return output
 
-
     def get_subgrid(self, coordinate_list):
         #todo: skip indices it cant find
         if len(coordinate_list) == 0:
@@ -379,48 +345,8 @@ class Grid:
         except:
             raise IndexError
 
-    def unpack_key(self, key):
-        if isinstance(key, int):
-            key = (key, slice(None))
-        if isinstance(key, tuple):
-            if len(key) in [2, 3]:
-                types = [type(ii) for ii in key]
-                if any([False for ii in types if ii in (int, slice) or ii is None]):
-                    return None
-                if len(key) - key.count(None) == 3:
-                    if types.count(int) == 3 or types.count(slice) == 3:
-                        skip_index = 2
-                    elif types.count(int) in [1,2]:
-                        skip_index = types.index(slice)
-                    key = tuple([key[ii] for ii in range(len(key)) if ii != skip_index])
-                if isinstance(key[0], slice) or isinstance(key[1], slice) or (len(key) == 3 and isinstance(key[2], slice)):
-                    starting_index = list()
-                    ending_index = list()
-                    for key_index in range(len(key)):
-                        if isinstance(key[key_index], slice):
-                            starting_index_portion = key[key_index].start if key[key_index].start is not None else self.extents[key_index][0]
-                            ending_index_portion = key[key_index].stop if key[key_index].stop is not None else self.extents[key_index][1]
-                            starting_index.append(starting_index_portion)
-                            ending_index.append(ending_index_portion)
-                        else:
-                            starting_index.append(key[key_index])
-                            ending_index.append(key[key_index])
-                    starting_index = complete_cubic_coordinates(starting_index)
-                    ending_index = complete_cubic_coordinates(ending_index)
-                    coordinate_list = generate_rhombal_array_indices(starting_index, ending_index)
-                    return coordinate_list
-                else:
-                    return complete_cubic_coordinates(key)
-            else:
-                return None
-        elif isinstance(key, list):
-            return complete_cubic_coordinates(key)
-        else:
-            return None
-
-
     def __getitem__(self, key):
-        unpacked_key = self.unpack_key(key)
+        unpacked_key = unpack_key(key, self.extents)
         if isinstance(unpacked_key, list):
             return self.get_subgrid(unpacked_key)
         elif isinstance(unpacked_key, tuple):
@@ -435,7 +361,7 @@ class Grid:
         if isinstance(value, Grid):
             pass #todo set to a slice if shape/some dimensions match?
         else:
-            unpacked_key = self.unpack_key(key)
+            unpacked_key = unpack_key(key, self.extents)
             if isinstance(unpacked_key, list):
                 for coordinate in unpacked_key:
                     if coordinate in self.element_dict:
@@ -451,7 +377,7 @@ class Grid:
                 pass
 
     def __delitem__(self, key):
-        unpacked_key = self.unpack_key(key)
+        unpacked_key = unpack_key(key, self.extents)
         if isinstance(unpacked_key, list):
             for coordinate in unpacked_key:
                 if coordinate in self.element_dict:
@@ -474,240 +400,13 @@ class Grid:
         return f'Grid({self.element_list})'
 
 
-def translation(cubic_coordinates, direction, distance):
-    """
-    Gives the cubic coordinates of the hex gotten by translating a distance in a direction
-    direction = 0 is downward in the grid, increasing rotates counter-clockwise
-    """
-    x, y, z = cubic_coordinates
-    if direction == 0 or direction == 1:
-        y -= distance
-    if direction == 1 or direction == 2:
-        x += distance
-    if direction == 2 or direction == 3:
-        z -= distance
-    if direction == 3 or direction == 4:
-        y += distance
-    if direction == 4 or direction == 5:
-        x -= distance
-    if direction == 5 or direction == 0:
-        z += distance
-    return (x, y, z)
-
-
-def distance(cubic_coordinates_1, cubic_coordinates_2):
-    delta_x = abs(cubic_coordinates_1[0] - cubic_coordinates_2[0])
-    delta_y = abs(cubic_coordinates_1[1] - cubic_coordinates_2[1])
-    delta_z = abs(cubic_coordinates_1[2] - cubic_coordinates_2[2])
-    return sum([delta_x, delta_y, delta_z]) - max(delta_x, delta_y, delta_z)
-
-
-def generate_visual_grid(element_dict, min_x, min_y, max_x, max_y, size=defaul_sie):
-    width = max_x - min_x + 1
-    height = max_y - min_y + 2
-    overbar = u'\u0305'
-    element_rectangular_dict = {hex_obj.rectangular_coordinates: hex_obj for hex_obj in element_dict.values()}
-    ASPECT_RATIO = 1.7
-    full_building_blocks = []
-    size_x = int(round(size * ASPECT_RATIO)) + 2
-    block_width = size_x + 2 * 1
-    for ii in range(size):
-        if ii == 0:
-            new_line = ' ' * (1 - ii - 1) + "/" + overbar * (size_x + ii * 2) + "\\" + ' ' * (1 - ii - 1)
-        else:
-            new_line = ' ' * (1 - ii - 1) + "/" + ' ' * (size_x + ii * 2) + "\\" + ' ' * (1 - ii - 1)
-        full_building_blocks.append(new_line)
-    for ii in reversed(range(size)):
-        if ii == 0:
-            new_line = ' ' * (1 - ii - 1) + "\\" + '_' * (size_x + ii * 2) + "/" + ' ' * (1 - ii - 1)
-        else:
-            new_line = ' ' * (1 - ii - 1) + "\\" + ' ' * (size_x + ii * 2) + "/" + ' ' * (1 - ii - 1)
-        full_building_blocks.append(new_line)
-    # empty_building_block = ' ' * block_width
-    lines = []
-    for ii in range(height * size * 2):
-        new_line = ''
-        for jj in range(width):
-            # expected_rectangular_coordinates = (jj + min_x, (ii - size * (jj % 2) - ((min_x % 2)) + 1) // (size * 2) + min_y)
-            expected_rectangular_coordinates = (jj + min_x, (ii - size * (jj % 2) - size * 2 * ((jj + 1) % 2) * (min_x % 2)) // (size * 2) + min_y)
-            offset_index = ii % (size*2)
-            if jj == 0:
-                new_line += ' ' * (size - 1 - min(offset_index, 2 * size - 1 - offset_index))
-            building_block_index = (ii + size * (jj % 2)) % (size * 2)
-            if expected_rectangular_coordinates in element_rectangular_dict.keys():
-                new_line += full_building_blocks[building_block_index]
-            else:
-                new_line += ' ' * len(full_building_blocks[building_block_index])
-        lines.append(new_line)
-    for element in element_dict.values():
-        jj, ii = element.rectangular_coordinates
-        adjusted_rectangular_coordinates = (jj - min_x,
-                                            ii + (jj % 2) * (min_x % 2) - min_y)   # - (min_y % 2))
-        x_center = int((size_x + size + 1) * (adjusted_rectangular_coordinates[0] + 0.5)) + 1
-        y = int(size * 2 * adjusted_rectangular_coordinates[1] + 1 + (adjusted_rectangular_coordinates[0] % 2 + 1) * size - int((len(element.text) + 1) / 2))
-        text_broken_up = element.text
-        if len(text_broken_up) > 2 * size:
-            text_broken_up = text_broken_up[:2 * size]
-        vertical_offset = len(text_broken_up) // 2
-        for ind, chars in enumerate(text_broken_up):
-            if ind >= size * 2 - 1:
-                break
-            space = size_x + 2 * min(ind, abs(ind + 1 - size * 2))
-            if space < len(chars):
-                chars = chars[0:space]
-            x = x_center - int(len(chars)/2)
-            level = y + ind - vertical_offset
-            lines[level] = lines[level][0: x] + chars + lines[level][x + len(chars):]
-    lines = remove_empty_lines(lines)
-    output = '\n'.join(lines)
-    return output
-
-
-def remove_empty_lines(lines):
-    indices_with_material = []
-    for ii, line in enumerate(lines):
-        if np.any([True for char in line if char != ' ']):
-            indices_with_material.append(ii)
-    if len(indices_with_material) > 0:
-        lines = lines[indices_with_material[0]: indices_with_material[-1] + 1]
-    else:
-        lines = []
-    return lines
-
-
-def one_hot(length, index):
-    output = np.zeros(length).astype(int)
-    output[index] = 1
-    return output
-
-
-def generate_rhombal_array_indices(starting_coordinates, ending_coordinates):
-    coordinate_list = list()
-    axis_diffs = [ending_coordinate - starting_coordinate for
-                  (starting_coordinate, ending_coordinate) in
-                  zip(starting_coordinates, ending_coordinates)]
-    pos_axis_diffs = np.abs(axis_diffs)
-    sign_axis_diffs = np.sign(axis_diffs)
-    if np.all(pos_axis_diffs):
-        # the two hexes are not aligned along any axis
-        long_axis = np.argmax(np.abs(axis_diffs))
-        loop_axes = tuple({0, 1, 2} - {long_axis})
-        for ii in range(int(pos_axis_diffs[loop_axes[0]] + 1)):
-            for jj in range(int(pos_axis_diffs[loop_axes[1]] + 1)):
-                coordinate_list.append(tuple(np.array(starting_coordinates).astype(int)
-                                             + ii * one_hot(3, loop_axes[0]) * sign_axis_diffs
-                                             + jj * one_hot(3, loop_axes[1]) * sign_axis_diffs
-                                             + (ii+jj) * one_hot(3, long_axis) * sign_axis_diffs
-                                             ))
-    else:
-        # the two hexes are aligned so the result is a  'flat rhombus' (line)
-        for ii in range(max(pos_axis_diffs) + 1):
-            coordinate_list.append(tuple(np.array(starting_coordinates) + ii * sign_axis_diffs))
-    return coordinate_list
-
-
-def generate_radial_array_indices(radius, origin=None):
-    if origin is None:
-        origin = (0, 0, 0)
-    coordinate_list = [origin]
-    for xx in range(-radius, radius + 1):
-        for yy in range(-radius, radius + 1):
-            if xx == 0 and yy == 0:
-                continue
-            zz = - xx - yy
-            if abs(zz) > radius:
-                continue
-            coordinate_list.append((xx + origin[0], yy + origin[1], zz + origin[2]))
-    return coordinate_list
-
-
-
-def generate_angular_rhombal_array_indices(side_length, orientation, origin=None):
-    if origin is None:
-        origin = (0, 0, 0)
-    coordinate_list = [origin]
-
-    x_constraint = (orientation % 3 - 1) * (2 * (orientation // 3) - 1)
-    orientation = (orientation - 1) % 6
-    y_constraint = (orientation % 3 - 1) * (2 * (orientation // 3) - 1)
-    orientation = (orientation - 1) % 6
-    z_constraint = (orientation % 3 - 1) * (2 * (orientation // 3) - 1)
-
-    for xx in range(-side_length, side_length + 1):
-        if x_constraint and xx and np.sign(xx) != x_constraint:
-            continue
-        for yy in range(-side_length, side_length + 1):
-            if y_constraint and yy and np.sign(yy) != y_constraint:
-                continue
-            if xx == 0 and yy == 0:
-                continue
-            zz = - xx - yy
-            if z_constraint and zz and np.sign(zz) != z_constraint:
-                continue
-            if abs(zz) > side_length:
-                continue
-            coordinate_list.append((xx + origin[0], yy + origin[1], zz + origin[2]))
-    return coordinate_list
-
-
-def x_y_z_sign_convention(orientation):
-    x_constraint = 2 * (((orientation - 0) % 6) // 3) - 1
-    y_constraint = 2 * (((orientation + 2) % 6) // 3) - 1
-    z_constraint = 2 * (((orientation - 2) % 6) // 3) - 1
-    return x_constraint, y_constraint, z_constraint
-
-
-def generate_triangular_array_indices(side_length, orientation=None, origin=None):
-    if origin is None:
-        origin = (0, 0, 0)
-    else:
-        origin = tuple(origin)
-    if orientation is None:
-        orientation = 0
-    coordinate_list = [origin]
-    x_constraint, y_constraint, z_constraint = x_y_z_sign_convention(orientation)
-
-    for xx in range(-side_length, side_length + 1):
-        if x_constraint and xx and np.sign(xx) != x_constraint:
-            continue
-        for yy in range(-side_length, side_length + 1):
-            if y_constraint and yy and np.sign(yy) != y_constraint:
-                continue
-            if xx == 0 and yy == 0:
-                continue
-            zz = - xx - yy
-            if z_constraint and zz and np.sign(zz) != z_constraint:
-                continue
-            if abs(zz) > side_length:
-                continue
-            coordinate_list.append((xx + origin[0], yy + origin[1], zz + origin[2]))
-    return coordinate_list
-
-
-def generate_star_array_indices(radius, origin=None):
-    if origin is None:
-        origin = (0, 0, 0)
-    center_hex_coordinates = generate_radial_array_indices(radius, origin)
-    edge_triangles = list()
-    for orientation in range(6):
-        constraints = np.array(x_y_z_sign_convention(orientation))
-        majority_sign = sum(constraints)
-        triangle_origin = ((constraints != majority_sign) + 1) * constraints * radius
-        triangle_coordinates = generate_triangular_array_indices(side_length=radius,
-                                                                 orientation=(orientation + 3) % 6,
-                                                                 origin=triangle_origin)
-        edge_triangles.append(triangle_coordinates)
-    coordinate_list = set().union(*(edge_triangles+[center_hex_coordinates]))
-    return coordinate_list
-
-
 def full(mode='radial', fill_value=None, origin=None, radius=None, starting_coordinates=None, ending_coordinates=None,
          side_length=None, orientation=None, size=defaul_sie):
 
     if mode == 'radial':
         assert isinstance(radius, int)
         coordinate_list = generate_radial_array_indices(radius, origin)
-    if mode == 'star':
+    elif mode == 'star':
         assert isinstance(radius, int)
         coordinate_list = generate_star_array_indices(radius, origin)
     elif mode == 'rhombal':

@@ -1,7 +1,7 @@
-from hexing import *
+from hexing.hexing import *
 import numpy as np
-import random
-import itertools
+
+from hexing.math_utilities import translation, distance, one_hot
 
 move_names = ['plant', 'special_plant', 'pass', 'upgrade', 'collect', 'purchase']
 
