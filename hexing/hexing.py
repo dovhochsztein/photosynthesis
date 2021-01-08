@@ -7,7 +7,6 @@ from math_utilities import complete_cubic_coordinates
 from grid_utilities import unpack_key
 from print_utilities import generate_visual_grid
 
-
 # todo:
 # remove element list,
 # fix print text to consider new lines without requiring list of strings
